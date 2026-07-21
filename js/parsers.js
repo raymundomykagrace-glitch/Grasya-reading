@@ -304,83 +304,65 @@
     }
   }
 
-  // Wattpad story/table-of-contents pages list every chapter as a link to
-  // /<numericId>-<slug>, distinct from the story page itself (/story/<id>-...).
-  // Reader-extracted markdown keeps links, so we can recover the chapter
-  // order directly from the text instead of needing Wattpad's own API.
-  function extractWattpadChapterLinks(markdown) {
-    const re = /\[([^\]]+)\]\((https?:\/\/(?:www\.)?wattpad\.com\/(\d+)[^\s)]*)\)/g;
-    const seen = new Set();
-    const out = [];
-    let m;
-    while ((m = re.exec(markdown))) {
-      const id = m[3];
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push({ label: m[1].trim(), url: m[2] });
-    }
-    return out;
+  function isWattpadStoryUrl(url) {
+    return /wattpad\.com\/story\/\d+/i.test(url);
+  }
+
+  function extractWattpadId(url) {
+    const m = /wattpad\.com\/(?:story\/)?(\d+)/i.exec(url);
+    return m ? m[1] : null;
+  }
+
+  async function fetchWattpadJson(apiUrl) {
+    const res = await fetch(apiUrl);
+    if (!res.ok) throw new Error('Wattpad request failed (status ' + res.status + ')');
+    return res.json();
   }
 
   const WATTPAD_MAX_CHAPTERS = 400;
 
+  // Wattpad's own web/app API is used directly here instead of scraping the
+  // rendered page: the story's part list only loads client-side via JS on
+  // the story page, so it never shows up in a plain HTML/text extraction of
+  // that page. The API also happens to be CORS-open (`Access-Control-Allow-
+  // Origin: *`), so it's fetchable straight from the browser with no proxy.
   async function parseWattpadStory(url, onProgress) {
-    const first = await fetchReadable(url);
-    let links = extractWattpadChapterLinks(first.body);
-    let storyTitle = first.title;
+    const id = extractWattpadId(url);
+    if (!id) throw new Error('Could not find a Wattpad story in that link');
 
-    // If the pasted link is a single chapter rather than the story's table
-    // of contents, look for a link back to the story page and follow it to
-    // recover the full chapter list.
-    if (links.length < 2) {
-      const tocMatch = /(https?:\/\/(?:www\.)?wattpad\.com\/story\/\d+[^\s)]*)/i.exec(first.body);
-      if (tocMatch) {
-        try {
-          const toc = await fetchReadable(tocMatch[1]);
-          const tocLinks = extractWattpadChapterLinks(toc.body);
-          if (tocLinks.length > links.length) {
-            links = tocLinks;
-            storyTitle = toc.title;
-          }
-        } catch (e) {
-          // fall through and use whatever we already have
-        }
-      }
+    let storyId = id;
+    if (!isWattpadStoryUrl(url)) {
+      // Pasted link is a single chapter/part — resolve its parent story.
+      const part = await fetchWattpadJson(`https://www.wattpad.com/api/v3/story_parts/${id}`);
+      storyId = part.groupId || part.group_id;
+      if (!storyId) throw new Error('Could not find the story this chapter belongs to');
     }
 
-    if (!links.length) {
-      // Couldn't find a chapter list at all — import the single page as-is
-      // rather than fail outright.
-      return {
-        mode: 'reflow',
-        title: first.title,
-        chapters: [{ title: 'Chapter', html: markdownToChapterHtml(first.body) }],
-        sourceUrl: url,
-      };
-    }
+    const story = await fetchWattpadJson(`https://www.wattpad.com/api/v3/stories/${storyId}`);
+    const parts = (story.parts || []).filter((p) => !p.draft);
+    if (!parts.length) throw new Error('This story has no readable parts');
 
-    const capped = links.slice(0, WATTPAD_MAX_CHAPTERS);
+    const capped = parts.slice(0, WATTPAD_MAX_CHAPTERS);
     const chapters = [];
     for (let i = 0; i < capped.length; i++) {
       if (onProgress) onProgress(i + 1, capped.length);
       try {
-        const part = await fetchReadable(capped[i].url);
-        chapters.push({
-          title: capped[i].label || part.title || `Chapter ${i + 1}`,
-          html: markdownToChapterHtml(part.body),
-        });
+        const res = await fetch(`https://www.wattpad.com/apiv2/storytext?id=${capped[i].id}`);
+        if (!res.ok) throw new Error('status ' + res.status);
+        const html = await res.text();
+        chapters.push({ title: capped[i].title || `Chapter ${i + 1}`, html: sanitizeHtml(html) });
       } catch (err) {
         chapters.push({
-          title: capped[i].label || `Chapter ${i + 1}`,
+          title: capped[i].title || `Chapter ${i + 1}`,
           html: '<p><em>This chapter could not be loaded.</em></p>',
         });
       }
-      // Be a polite, sequential neighbor to the shared reader service rather
-      // than firing dozens of requests at once.
-      await new Promise((r) => setTimeout(r, 200));
+      // Be a polite, sequential neighbor rather than firing every chapter's
+      // request at once.
+      await new Promise((r) => setTimeout(r, 120));
     }
 
-    return { mode: 'reflow', title: storyTitle, chapters, sourceUrl: url };
+    return { mode: 'reflow', title: story.title, chapters, sourceUrl: url };
   }
 
   async function parseUrl(rawUrl, onProgress) {
