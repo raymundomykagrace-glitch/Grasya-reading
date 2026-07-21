@@ -38,8 +38,16 @@
     _remeasure(preserveFraction) {
       const prevFraction = preserveFraction ? this.getFraction() : 0;
       const rect = this.viewportEl.getBoundingClientRect();
-      const pageWidth = Math.max(1, Math.floor(rect.width));
-      const pageHeight = Math.max(1, Math.floor(rect.height));
+      // contentEl is a child of viewportEl and only gets viewportEl's padding
+      // box (not its border-box), so its available size is the viewport's
+      // rect minus the viewport's own padding. Using rect.width/height
+      // directly here overstates the page size and desyncs our page-slot
+      // math from the columns the browser actually renders.
+      const vpStyle = getComputedStyle(this.viewportEl);
+      const padX = (parseFloat(vpStyle.paddingLeft) || 0) + (parseFloat(vpStyle.paddingRight) || 0);
+      const padY = (parseFloat(vpStyle.paddingTop) || 0) + (parseFloat(vpStyle.paddingBottom) || 0);
+      const pageWidth = Math.max(1, Math.floor(rect.width - padX));
+      const pageHeight = Math.max(1, Math.floor(rect.height - padY));
       this.contentEl.style.columnWidth = pageWidth + 'px';
       this.contentEl.style.height = pageHeight + 'px';
       const gap = parseFloat(getComputedStyle(this.contentEl).columnGap) || 0;
