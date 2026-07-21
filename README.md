@@ -17,6 +17,15 @@ This is a static site with no build step or backend. Just open `index.html` in a
 npx serve .
 ```
 
+## Deploying to Netlify
+
+No build step is needed — `netlify.toml` already points Netlify at the repo root.
+
+- **Connect the repo (recommended)**: In Netlify, "Add new site" → "Import an existing project" → pick this repo. Leave the build command blank and the publish directory as `.` (already set in `netlify.toml`). Deploy. Every push to this branch/main will auto-redeploy.
+- **Drag-and-drop**: On [app.netlify.com/drop](https://app.netlify.com/drop), drag the whole project folder (containing `index.html`, `css/`, `js/`) onto the page for an instant one-off deploy.
+
+Note that IndexedDB storage (books, reading position, bookmarks) is scoped per browser + origin, so once it's live on your Netlify URL, that's what people should bookmark/return to for their saved books to persist.
+
 ## How it works
 
 - `js/parsers.js` turns each file type (or fetched article) into a common shape: either a list of reflowable chapters (text/HTML/EPUB/DOCX/Markdown) or a list of fixed pages (PDF/images).
