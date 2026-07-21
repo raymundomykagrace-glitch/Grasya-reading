@@ -394,7 +394,12 @@ button {
   columns: 1;
   column-gap: 64px;
   column-fill: auto;
-  overflow: hidden;
+  /* Deliberately not clipped: this box is only ever as wide as one page,
+     with every other page painted as column ink-overflow to its right.
+     overflow:hidden here would clip that overflow away, hiding every page
+     but the first. .reflow-viewport (the actual visible "window") is what
+     clips the translated strip down to one page at a time. */
+  overflow: visible;
   will-change: transform;
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 1.05rem;
