@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Grasya Reading</title>
+<meta name="description" content="Upload any document and read it in a distraction-free storybook-style reader with bookmarks.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===================== LIBRARY VIEW ===================== -->
+  <section id="library-view" class="view">
+    <header class="lib-header">
+      <h1 class="brand">📖 Grasya Reading</h1>
+      <p class="tagline">Upload anything. Read it like a storybook. Pick up right where you left off.</p>
+    </header>
+
+    <div id="drop-zone" class="drop-zone">
+      <input type="file" id="file-input" multiple hidden
+        accept=".txt,.md,.markdown,.html,.htm,.pdf,.epub,.docx,.png,.jpg,.jpeg,.gif,.webp">
+      <div class="drop-inner">
+        <div class="drop-icon">📚</div>
+        <p><strong>Drop files here</strong> or <button id="browse-btn" class="link-btn">browse your device</button></p>
+        <p class="drop-hint">Supports TXT, Markdown, HTML, PDF, EPUB, DOCX and images</p>
+      </div>
+    </div>
+
+    <div class="url-row">
+      <span class="url-row-icon">🔗</span>
+      <input type="url" id="url-input" placeholder="Or paste a web article link…">
+      <button id="url-add-btn" class="primary-btn">Add</button>
+    </div>
+
+    <div id="continue-reading-wrap" class="shelf-wrap hidden">
+      <h2 class="shelf-title">Continue Reading</h2>
+      <div id="continue-reading" class="shelf shelf-continue"></div>
+    </div>
+
+    <div class="shelf-wrap">
+      <h2 class="shelf-title">Your Books</h2>
+      <div id="library-empty" class="empty-msg hidden">Your shelf is empty. Upload a file above to get started.</div>
+      <div id="library-shelf" class="shelf"></div>
+    </div>
+  </section>
+
+  <!-- ===================== READER VIEW ===================== -->
+  <section id="reader-view" class="view hidden">
+    <header class="reader-topbar">
+      <button id="back-to-library" class="icon-btn" title="Back to library">←</button>
+      <div class="reader-title-wrap">
+        <span id="reader-title" class="reader-title">Untitled</span>
+        <span id="reader-progress" class="reader-progress"></span>
+      </div>
+      <div class="reader-actions">
+        <div class="menu-wrap">
+          <button id="bookmark-btn" class="icon-btn" title="Add bookmark here">🔖</button>
+          <button id="bookmarks-list-btn" class="icon-btn" title="Bookmarks">📑</button>
+          <div id="bookmarks-menu" class="dropdown-menu hidden"></div>
+        </div>
+        <div class="menu-wrap">
+          <button id="settings-btn" class="icon-btn" title="Display settings">Aa</button>
+          <div id="settings-menu" class="dropdown-menu hidden">
+            <div class="settings-row">
+              <span>Text size</span>
+              <div class="btn-group">
+                <button id="font-dec" class="mini-btn">A-</button>
+                <button id="font-inc" class="mini-btn">A+</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <span>Theme</span>
+              <div class="btn-group">
+                <button class="mini-btn theme-swatch theme-light" data-theme="light" title="Light"></button>
+                <button class="mini-btn theme-swatch theme-sepia" data-theme="sepia" title="Sepia"></button>
+                <button class="mini-btn theme-swatch theme-dark" data-theme="dark" title="Dark"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="reader-body" class="reader-body">
+      <div id="paged-viewer" class="paged-viewer hidden">
+        <img id="paged-image" alt="Page" draggable="false">
+      </div>
+      <div id="reflow-viewport" class="reflow-viewport">
+        <div id="reflow-content" class="reflow-content"></div>
+      </div>
+      <button id="prev-page" class="page-nav page-nav-prev" aria-label="Previous page">‹</button>
+      <button id="next-page" class="page-nav page-nav-next" aria-label="Next page">›</button>
+    </main>
+
+    <footer class="reader-footer">
+      <input type="range" id="progress-slider" min="0" max="1000" value="0">
+    </footer>
+  </section>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p id="loading-text">Preparing your book…</p>
+  </div>
+</div>
+
+<!-- Third-party libraries (file parsing) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+
+<!-- App scripts -->
+<script src="js/db.js"></script>
+<script src="js/parsers.js"></script>
+<script src="js/paginator.js"></script>
+<script src="js/library.js"></script>
+<script src="js/reader.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
