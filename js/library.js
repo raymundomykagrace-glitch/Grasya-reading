@@ -89,10 +89,6 @@
     await renderLibrary(onOpen);
   }
 
-  function escapeHtmlAttr(str) {
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
   async function handleUrlImport(rawUrl, onOpen) {
     if (!rawUrl || !rawUrl.trim()) return;
     const overlay = document.getElementById('loading-overlay');
@@ -100,14 +96,16 @@
     overlay.classList.remove('hidden');
     loadingText.textContent = 'Fetching that link…';
     try {
-      const parsed = await GrasyaParsers.parseUrl(rawUrl);
-      const wrapperHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtmlAttr(
-        parsed.title
-      )}</title></head><body>${parsed.chapters[0].html}</body></html>`;
-      const safeName = (parsed.title || 'Article').replace(/[\\/:*?"<>|]+/g, '').slice(0, 80) || 'Article';
-      const file = new File([wrapperHtml], safeName + '.html', { type: 'text/html' });
+      const parsed = await GrasyaParsers.parseUrl(rawUrl, (cur, total) => {
+        loadingText.textContent = `Fetching chapter ${cur} of ${total}…`;
+      });
+      const file = GrasyaParsers.wrapChaptersAsFile(parsed.title, parsed.chapters);
       await saveParsedAsBook(file, parsed, { sourceUrl: parsed.sourceUrl });
-      showToast('Article added to your shelf');
+      showToast(
+        parsed.chapters.length > 1
+          ? `Story added — ${parsed.chapters.length} chapters`
+          : 'Article added to your shelf'
+      );
       await renderLibrary(onOpen);
     } catch (err) {
       console.error('Failed to import URL', rawUrl, err);
