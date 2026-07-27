@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SOP Content Generator</title>
+<style>
+  :root {
+    --light-blue: #e0f7ff;
+    --mid-blue: #b3e5fc;
+    --teal: #00838f;
+    --teal-bright: #0097a7;
+    --ink: #123;
+    --ink-soft: #45565c;
+    --danger: #c62828;
+    --success: #2e7d32;
+    --card-bg: #ffffff;
+    --border: #cfeaf2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--light-blue) 0%, #f4fcff 220px, #f7fbfc 100%);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  header.app-header {
+    background: linear-gradient(120deg, var(--teal) 0%, var(--teal-bright) 100%);
+    color: #fff;
+    padding: 28px 32px;
+    box-shadow: 0 2px 10px rgba(0, 60, 70, 0.15);
+  }
+
+  header.app-header h1 {
+    margin: 0 0 4px 0;
+    font-size: 1.6rem;
+    letter-spacing: 0.2px;
+  }
+
+  header.app-header p {
+    margin: 0;
+    opacity: 0.92;
+    font-size: 0.95rem;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 4px 18px rgba(0, 90, 105, 0.06);
+  }
+
+  .panel h2 {
+    margin-top: 0;
+    font-size: 1.05rem;
+    color: var(--teal);
+    border-bottom: 2px solid var(--mid-blue);
+    padding-bottom: 10px;
+  }
+
+  form label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin: 16px 0 6px;
+  }
+
+  form label .req { color: var(--danger); }
+  form label .opt { color: #90a4ae; font-weight: 400; }
+
+  input[type="text"],
+  input[type="url"],
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--mid-blue);
+    border-radius: 8px;
+    font-size: 0.92rem;
+    background: #fbfeff;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--teal-bright);
+    box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.15);
+  }
+
+  .hint {
+    font-size: 0.76rem;
+    color: #78909c;
+    margin-top: 4px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: 9px;
+    padding: 12px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
+  }
+
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .btn-primary {
+    background: linear-gradient(120deg, var(--teal) 0%, var(--teal-bright) 100%);
+    color: #fff;
+    width: 100%;
+    margin-top: 22px;
+    padding: 14px;
+    font-size: 1rem;
+    box-shadow: 0 4px 14px rgba(0, 131, 143, 0.3);
+  }
+
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(0, 131, 143, 0.4); }
+
+  .btn-secondary {
+    background: var(--light-blue);
+    color: var(--teal);
+    border: 1px solid var(--mid-blue);
+  }
+
+  .btn-secondary:hover:not(:disabled) { background: var(--mid-blue); }
+
+  .btn-small {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2.5px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--light-blue);
+    border: 1px solid var(--mid-blue);
+    color: var(--teal);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+  }
+  .status-banner.visible { display: flex; }
+  .status-banner .spinner-teal {
+    width: 15px; height: 15px;
+    border: 2.5px solid var(--mid-blue);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .error-banner {
+    display: none;
+    background: #fdecea;
+    border: 1px solid #f5c6c2;
+    color: var(--danger);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+    white-space: pre-wrap;
+  }
+  .error-banner.visible { display: block; }
+
+  .empty-state {
+    text-align: center;
+    color: #90a4ae;
+    padding: 60px 20px;
+  }
+  .empty-state .icon { font-size: 2.4rem; margin-bottom: 10px; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .content-box {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    background: #fcfeff;
+    min-height: 200px;
+  }
+
+  .content-box.streaming {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+
+  .rendered h1 { color: var(--teal); font-size: 1.5rem; margin-top: 0; }
+  .rendered h2 {
+    color: var(--teal);
+    font-size: 1.15rem;
+    margin-top: 26px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--light-blue);
+  }
+  .rendered h3 { color: var(--teal-bright); font-size: 1rem; margin-top: 18px; }
+  .rendered p { line-height: 1.7; color: var(--ink); }
+  .rendered ul { line-height: 1.7; }
+  .rendered strong { color: var(--teal); }
+  .rendered .meta-line {
+    background: var(--light-blue);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+  .rendered .meta-line b { color: var(--teal); }
+
+  .schemas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .schema-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .schema-card .schema-head {
+    background: var(--light-blue);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--teal);
+  }
+
+  .schema-card pre {
+    margin: 0;
+    padding: 14px;
+    font-size: 0.72rem;
+    max-height: 260px;
+    overflow: auto;
+    background: #0d2b30;
+    color: #b6f4ff;
+    line-height: 1.5;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: var(--teal);
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .word-count-badge {
+    font-size: 0.78rem;
+    color: #78909c;
+    margin-bottom: 12px;
+  }
+
+  footer.app-footer {
+    text-align: center;
+    color: #90a4ae;
+    font-size: 0.78rem;
+    padding: 24px;
+  }
+
+  .copied-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--teal);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+  }
+  .copied-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>SOP Content Generator</h1>
+  <p>Generate SOP-compliant treatment center page content, complete with FAQ, Organization, and Breadcrumb schema.</p>
+</header>
+
+<div class="layout">
+  <!-- LEFT: FORM -->
+  <section class="panel">
+    <h2>Page Details</h2>
+    <form id="generate-form">
+      <label for="title">Page Title <span class="req">*</span></label>
+      <input type="text" id="title" name="title" placeholder="e.g., Xanax Addiction Treatment" required />
+
+      <label for="pageUrl">Page URL <span class="opt">(optional)</span></label>
+      <input type="url" id="pageUrl" name="pageUrl" placeholder="https://example.com/xanax-addiction-treatment" />
+
+      <label for="primaryKeywords">Primary Keywords <span class="req">*</span></label>
+      <input type="text" id="primaryKeywords" name="primaryKeywords" placeholder="xanax addiction, xanax addiction treatment" required />
+      <div class="hint">Comma-separated</div>
+
+      <label for="secondaryKeywords">Secondary Keywords <span class="opt">(optional)</span></label>
+      <input type="text" id="secondaryKeywords" name="secondaryKeywords" placeholder="benzodiazepine dependence, xanax withdrawal" />
+      <div class="hint">Comma-separated</div>
+
+      <label for="sopType">SOP Type <span class="req">*</span></label>
+      <select id="sopType" name="sopType" required>
+        <option value="">Select SOP type…</option>
+        <option value="Addiction">Addiction / SUD</option>
+        <option value="Mental Health">Mental Health (Condition-Specific)</option>
+        <option value="Levels-of-Care">Levels-of-Care</option>
+        <option value="Program">Program Modality</option>
+        <option value="Therapy">Therapy Modality</option>
+      </select>
+
+      <label for="audience">Audience <span class="req">*</span></label>
+      <select id="audience" name="audience" required>
+        <option value="">Select audience…</option>
+        <option value="Research-mode">Research-mode</option>
+        <option value="Decision-mode">Decision-mode</option>
+        <option value="Action-mode">Action-mode</option>
+      </select>
+
+      <button type="submit" class="btn btn-primary" id="generate-btn">
+        <span>Generate Content</span>
+      </button>
+    </form>
+  </section>
+
+  <!-- RIGHT: OUTPUT -->
+  <section class="panel">
+    <h2>Generated Content</h2>
+
+    <div class="status-banner" id="status-banner">
+      <div class="spinner-teal"></div>
+      <span id="status-text">Generating content…</span>
+    </div>
+
+    <div class="error-banner" id="error-banner"></div>
+
+    <div id="toolbar" class="toolbar" style="display:none;">
+      <button class="btn btn-secondary btn-small" id="copy-content-btn">📋 Copy Content</button>
+      <button class="btn btn-secondary btn-small" id="download-md-btn">⬇ Download Markdown</button>
+      <button class="btn btn-secondary btn-small" id="download-html-btn">⬇ Download HTML</button>
+    </div>
+
+    <div id="content-area">
+      <div class="empty-state" id="empty-state">
+        <div class="icon">📝</div>
+        <div>Fill out the form and click <strong>Generate Content</strong> to get started.</div>
+      </div>
+    </div>
+
+    <div id="schemas-section" style="display:none; margin-top: 28px;">
+      <h2>Schema Markup</h2>
+      <div class="schemas-grid">
+        <div class="schema-card">
+          <div class="schema-head">
+            FAQ Schema
+            <button class="btn btn-secondary btn-small" data-copy-target="faq-schema-pre">Copy</button>
+          </div>
+          <pre id="faq-schema-pre"></pre>
+        </div>
+        <div class="schema-card">
+          <div class="schema-head">
+            Organization Schema
+            <button class="btn btn-secondary btn-small" data-copy-target="org-schema-pre">Copy</button>
+          </div>
+          <pre id="org-schema-pre"></pre>
+        </div>
+        <div class="schema-card">
+          <div class="schema-head">
+            Breadcrumb Schema
+            <button class="btn btn-secondary btn-small" data-copy-target="breadcrumb-schema-pre">Copy</button>
+          </div>
+          <pre id="breadcrumb-schema-pre"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer class="app-footer">SOP Content Generator &middot; Powered by Claude</footer>
+
+<div class="copied-toast" id="copied-toast">Copied to clipboard</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const API_BASE = window.location.origin;
+
+  const form = document.getElementById('generate-form');
+  const generateBtn = document.getElementById('generate-btn');
+  const statusBanner = document.getElementById('status-banner');
+  const statusText = document.getElementById('status-text');
+  const errorBanner = document.getElementById('error-banner');
+  const contentArea = document.getElementById('content-area');
+  const emptyState = document.getElementById('empty-state');
+  const toolbar = document.getElementById('toolbar');
+  const schemasSection = document.getElementById('schemas-section');
+  const copiedToast = document.getElementById('copied-toast');
+
+  const SCHEMA_MARKER = '===SCHEMA_JSON===';
+
+  let rawMarkdown = '';       // markdown content only (before schema marker), finalized
+  let parsedSchemas = null;   // { metaTitle, metaDescription, faqSchema, organizationSchema, breadcrumbSchema }
+  let currentTitle = '';
+
+  function showToast(msg) {
+    copiedToast.textContent = msg || 'Copied to clipboard';
+    copiedToast.classList.add('visible');
+    setTimeout(() => copiedToast.classList.remove('visible'), 1600);
+  }
+
+  function setStatus(visible, text) {
+    statusBanner.classList.toggle('visible', visible);
+    if (text) statusText.textContent = text;
+  }
+
+  function setError(message) {
+    if (!message) {
+      errorBanner.classList.remove('visible');
+      errorBanner.textContent = '';
+      return;
+    }
+    errorBanner.textContent = message;
+    errorBanner.classList.add('visible');
+  }
+
+  function setBusy(busy) {
+    generateBtn.disabled = busy;
+    generateBtn.innerHTML = busy
+      ? '<span class="spinner"></span><span>Generating…</span>'
+      : '<span>Generate Content</span>';
+  }
+
+  // ---------- Minimal, safe Markdown -> HTML renderer ----------
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function inlineMarkdown(text) {
+    let out = escapeHtml(text);
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    out = out.replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return out;
+  }
+
+  function markdownToHtml(markdown) {
+    const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+    let html = '';
+    let inList = false;
+    let metaBuffer = [];
+
+    function flushList() {
+      if (inList) { html += '</ul>'; inList = false; }
+    }
+    function flushMeta() {
+      if (metaBuffer.length) {
+        html += '<div class="meta-line">' + metaBuffer.join('<br/>') + '</div>';
+        metaBuffer = [];
+      }
+    }
+
+    for (let raw of lines) {
+      const line = raw.trim();
+
+      if (!line) { flushList(); continue; }
+
+      if (/^Meta Title:/i.test(line) || /^Meta Description:/i.test(line)) {
+        flushList();
+        const [label, ...rest] = line.split(':');
+        metaBuffer.push('<b>' + escapeHtml(label.trim()) + ':</b> ' + inlineMarkdown(rest.join(':').trim()));
+        continue;
+      } else {
+        flushMeta();
+      }
+
+      if (/^### /.test(line)) { flushList(); html += '<h3>' + inlineMarkdown(line.slice(4)) + '</h3>'; continue; }
+      if (/^## /.test(line)) { flushList(); html += '<h2>' + inlineMarkdown(line.slice(3)) + '</h2>'; continue; }
+      if (/^# /.test(line)) { flushList(); html += '<h1>' + inlineMarkdown(line.slice(2)) + '</h1>'; continue; }
+
+      if (/^[-*]\s+/.test(line)) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += '<li>' + inlineMarkdown(line.replace(/^[-*]\s+/, '')) + '</li>';
+        continue;
+      }
+
+      flushList();
+      html += '<p>' + inlineMarkdown(line) + '</p>';
+    }
+    flushList();
+    flushMeta();
+    return html;
+  }
+
+  function countWords(markdown) {
+    const stripped = markdown.replace(/[#*_>-]/g, ' ');
+    const words = stripped.trim().split(/\s+/).filter(Boolean);
+    return words.length;
+  }
+
+  // ---------- Rendering states ----------
+  function renderStreamingPreview(text) {
+    emptyState.style.display = 'none';
+    contentArea.innerHTML = '<div class="content-box streaming" id="stream-box"></div>';
+    document.getElementById('stream-box').textContent = text + ' ▌';
+    contentArea.scrollTop = contentArea.scrollHeight;
+  }
+
+  function renderFinal(markdown) {
+    const wordCount = countWords(markdown);
+    const html = markdownToHtml(markdown);
+    contentArea.innerHTML =
+      '<div class="word-count-badge">Approx. ' + wordCount + ' words</div>' +
+      '<div class="content-box rendered">' + html + '</div>';
+    toolbar.style.display = 'flex';
+  }
+
+  function prettyJson(obj) {
+    return JSON.stringify(obj, null, 2);
+  }
+
+  function renderSchemas(schemas) {
+    if (!schemas) return;
+    schemasSection.style.display = 'block';
+    document.getElementById('faq-schema-pre').textContent = prettyJson(schemas.faqSchema || {});
+    document.getElementById('org-schema-pre').textContent = prettyJson(schemas.organizationSchema || {});
+    document.getElementById('breadcrumb-schema-pre').textContent = prettyJson(schemas.breadcrumbSchema || {});
+  }
+
+  // ---------- Generation ----------
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    setError(null);
+
+    const payload = {
+      title: document.getElementById('title').value.trim(),
+      pageUrl: document.getElementById('pageUrl').value.trim(),
+      primaryKeywords: document.getElementById('primaryKeywords').value.trim(),
+      secondaryKeywords: document.getElementById('secondaryKeywords').value.trim(),
+      sopType: document.getElementById('sopType').value,
+      audience: document.getElementById('audience').value
+    };
+
+    if (!payload.title || !payload.primaryKeywords || !payload.sopType || !payload.audience) {
+      setError('Please fill in all required fields: Page Title, Primary Keywords, SOP Type, and Audience.');
+      return;
+    }
+
+    currentTitle = payload.title;
+    rawMarkdown = '';
+    parsedSchemas = null;
+    toolbar.style.display = 'none';
+    schemasSection.style.display = 'none';
+    setBusy(true);
+    setStatus(true, 'Connecting to Claude…');
+    emptyState.style.display = 'none';
+    contentArea.innerHTML = '';
+
+    try {
+      const response = await fetch(API_BASE + '/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        let message = 'Request failed with status ' + response.status;
+        try {
+          const errJson = await response.json();
+          if (errJson.error) message = errJson.error;
+          if (errJson.details) message += '\n- ' + errJson.details.join('\n- ');
+        } catch (_) { /* ignore parse failure */ }
+        throw new Error(message);
+      }
+
+      if (!response.body) {
+        throw new Error('Streaming is not supported in this browser.');
+      }
+
+      setStatus(true, 'Generating content…');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+
+        const markerIndex = fullText.indexOf(SCHEMA_MARKER);
+        if (markerIndex === -1) {
+          renderStreamingPreview(fullText);
+        } else {
+          renderStreamingPreview(fullText.slice(0, markerIndex));
+        }
+      }
+
+      // Check for a mid-stream error marker
+      if (fullText.includes('===ERROR===')) {
+        const [beforeError, afterError] = fullText.split('===ERROR===');
+        throw new Error((afterError || 'Content generation failed.').trim());
+      }
+
+      const markerIndex = fullText.indexOf(SCHEMA_MARKER);
+      if (markerIndex === -1) {
+        // No schema marker found — still show what we got, but warn.
+        rawMarkdown = fullText.trim();
+        renderFinal(rawMarkdown);
+        setError('Content generated, but schema data was not found in the response. Schemas are unavailable for this generation.');
+      } else {
+        rawMarkdown = fullText.slice(0, markerIndex).trim();
+        const jsonText = fullText.slice(markerIndex + SCHEMA_MARKER.length).trim();
+        renderFinal(rawMarkdown);
+        try {
+          parsedSchemas = JSON.parse(jsonText);
+          renderSchemas(parsedSchemas);
+        } catch (parseErr) {
+          console.error('Schema JSON parse error:', parseErr, jsonText);
+          setError('Content generated successfully, but the schema JSON could not be parsed. You can still copy/download the content.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Something went wrong while generating content.');
+      if (!rawMarkdown) {
+        contentArea.innerHTML = '';
+        emptyState.style.display = 'block';
+      }
+    } finally {
+      setBusy(false);
+      setStatus(false);
+    }
+  });
+
+  // ---------- Copy / Download ----------
+  function copyText(text, label) {
+    navigator.clipboard.writeText(text).then(
+      () => showToast((label || 'Content') + ' copied!'),
+      () => showToast('Copy failed — please copy manually.')
+    );
+  }
+
+  document.getElementById('copy-content-btn').addEventListener('click', function () {
+    if (!rawMarkdown) return;
+    copyText(rawMarkdown, 'Content');
+  });
+
+  document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const targetId = btn.getAttribute('data-copy-target');
+      const el = document.getElementById(targetId);
+      if (el) copyText(el.textContent, 'Schema');
+    });
+  });
+
+  function triggerDownload(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function slugify(str) {
+    return (str || 'sop-content')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'sop-content';
+  }
+
+  document.getElementById('download-md-btn').addEventListener('click', function () {
+    if (!rawMarkdown) return;
+    triggerDownload(slugify(currentTitle) + '.md', rawMarkdown, 'text/markdown');
+  });
+
+  document.getElementById('download-html-btn').addEventListener('click', function () {
+    if (!rawMarkdown) return;
+    const bodyHtml = markdownToHtml(rawMarkdown);
+    const schemaScripts = parsedSchemas
+      ? [
+          ['FAQPage', parsedSchemas.faqSchema],
+          ['Organization', parsedSchemas.organizationSchema],
+          ['BreadcrumbList', parsedSchemas.breadcrumbSchema]
+        ]
+          .filter(([, s]) => s)
+          .map(([, s]) => '<script type="application/ld+json">' + JSON.stringify(s, null, 2) + '<' + '/script>')
+          .join('\n')
+      : '';
+
+    const pageTitle = (parsedSchemas && parsedSchemas.metaTitle) || currentTitle;
+    const pageDescription = (parsedSchemas && parsedSchemas.metaDescription) || '';
+
+    const fullHtml =
+      '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8" />\n' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n' +
+      '<title>' + escapeHtml(pageTitle) + '</title>\n' +
+      '<meta name="description" content="' + escapeHtml(pageDescription) + '" />\n' +
+      '<style>\n' +
+      'body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:820px;margin:40px auto;padding:0 20px;color:#123;line-height:1.7;}\n' +
+      'h1{color:#00838f;}\n' +
+      'h2{color:#00838f;border-bottom:2px solid #e0f7ff;padding-bottom:6px;margin-top:34px;}\n' +
+      'h3{color:#0097a7;}\n' +
+      'strong{color:#00838f;}\n' +
+      '</style>\n' +
+      schemaScripts + '\n' +
+      '</head>\n<body>\n' + bodyHtml + '\n</body>\n</html>\n';
+
+    triggerDownload(slugify(currentTitle) + '.html', fullHtml, 'text/html');
+  });
+})();
+</script>
+</body>
+</html>

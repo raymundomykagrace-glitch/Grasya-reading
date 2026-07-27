@@ -1,0 +1,21 @@
+{
+  "name": "sop-content-generator",
+  "version": "1.0.0",
+  "description": "Node.js + Express backend and single-file frontend for generating SOP-compliant treatment center content with Claude, including FAQ, Organization, and BreadcrumbList schema.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
