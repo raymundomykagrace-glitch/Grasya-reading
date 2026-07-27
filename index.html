@@ -465,6 +465,12 @@
   let rawMarkdown = '';       // markdown content only (before schema marker), finalized
   let parsedSchemas = null;   // { metaTitle, metaDescription, faqSchema, organizationSchema, breadcrumbSchema }
   let currentTitle = '';
+  let generationMode = 'api'; // 'api' streams live; 'cli' returns the full response in one shot
+
+  fetch(API_BASE + '/health')
+    .then((r) => r.json())
+    .then((data) => { if (data && data.generationMode) generationMode = data.generationMode; })
+    .catch(() => { /* backend not reachable yet; default status text is fine */ });
 
   function showToast(msg) {
     copiedToast.textContent = msg || 'Copied to clipboard';
@@ -619,7 +625,9 @@
     toolbar.style.display = 'none';
     schemasSection.style.display = 'none';
     setBusy(true);
-    setStatus(true, 'Connecting to Claude…');
+    setStatus(true, generationMode === 'cli'
+      ? 'Generating via your Claude subscription — longer pages can take a minute or two…'
+      : 'Connecting to Claude…');
     emptyState.style.display = 'none';
     contentArea.innerHTML = '';
 
@@ -644,7 +652,7 @@
         throw new Error('Streaming is not supported in this browser.');
       }
 
-      setStatus(true, 'Generating content…');
+      setStatus(true, generationMode === 'cli' ? 'Writing your page…' : 'Generating content…');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();

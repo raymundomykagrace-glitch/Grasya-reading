@@ -4,23 +4,33 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const Anthropic = require('@anthropic-ai/sdk');
 const { buildPrompt, SOP_BLUEPRINTS, AUDIENCE_GUIDANCE } = require('./prompts');
+const { generateWithCli } = require('./cliGenerator');
 
 const PORT = process.env.PORT || 3000;
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
+const CLI_MODEL = process.env.CLAUDE_CLI_MODEL || 'sonnet';
 const MAX_TOKENS = 8000;
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.warn(
-    '[WARN] ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key, ' +
-    'or every /generate-content request will fail.'
-  );
-}
+// "api"  -> calls the Anthropic Messages API directly with ANTHROPIC_API_KEY (billed per token)
+// "cli"  -> shells out to the `claude` CLI, using an existing Claude Code / Claude.ai
+//           subscription login instead of a separate billed API key
+const GENERATION_MODE = (process.env.GENERATION_MODE || 'api').trim().toLowerCase();
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
+let anthropic = null;
+if (GENERATION_MODE === 'api') {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn(
+      '[WARN] GENERATION_MODE=api but ANTHROPIC_API_KEY is not set. Copy .env.example to .env ' +
+      'and add your key, or set GENERATION_MODE=cli to use a Claude Code subscription login instead.'
+    );
+  }
+  // Lazy require so `cli` mode doesn't need this dependency configured at all.
+  const Anthropic = require('@anthropic-ai/sdk');
+  anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+} else if (GENERATION_MODE !== 'cli') {
+  console.warn(`[WARN] Unknown GENERATION_MODE "${GENERATION_MODE}". Falling back to "api".`);
+}
 
 const app = express();
 
@@ -50,7 +60,12 @@ function validateBody(body) {
 }
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', model: MODEL, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY) });
+  res.json({
+    status: 'ok',
+    generationMode: GENERATION_MODE === 'cli' ? 'cli' : 'api',
+    model: GENERATION_MODE === 'cli' ? CLI_MODEL : MODEL,
+    hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY)
+  });
 });
 
 app.get('/sop-types', (req, res) => {
@@ -68,11 +83,16 @@ app.get('/sop-types', (req, res) => {
 });
 
 /**
- * Streams raw generated text to the client as it arrives from Claude.
- * The stream is plain chunked text (not SSE) so a simple fetch + ReadableStream
- * reader on the frontend can render it live. The final chunk of the stream
- * contains a "===SCHEMA_JSON===" marker followed by a JSON object the
- * frontend parses out after the stream ends.
+ * In "api" mode, streams raw generated text to the client as it arrives from
+ * the Messages API. The stream is plain chunked text (not SSE) so a simple
+ * fetch + ReadableStream reader on the frontend can render it live.
+ *
+ * In "cli" mode, the `claude` CLI's print mode only returns a complete
+ * response (no token-level streaming is available), so the full text is
+ * written to the response in one chunk once generation finishes.
+ *
+ * Either way, the response body ends with a "===SCHEMA_JSON===" marker
+ * followed by a JSON object the frontend parses out after the stream ends.
  */
 app.post('/generate-content', async (req, res) => {
   const errors = validateBody(req.body);
@@ -80,9 +100,10 @@ app.post('/generate-content', async (req, res) => {
     return res.status(400).json({ error: 'Invalid request.', details: errors });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (GENERATION_MODE === 'api' && !process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({
-      error: 'Server is missing ANTHROPIC_API_KEY. Add it to your .env file and restart the server.'
+      error: 'Server is missing ANTHROPIC_API_KEY. Add it to your .env file, or set ' +
+        'GENERATION_MODE=cli in .env to use a Claude Code subscription login instead.'
     });
   }
 
@@ -99,6 +120,25 @@ app.post('/generate-content', async (req, res) => {
     'X-Accel-Buffering': 'no'
   });
 
+  let closed = false;
+  req.on('close', () => {
+    closed = true;
+  });
+
+  if (GENERATION_MODE === 'cli') {
+    try {
+      const text = await generateWithCli({ system, user, model: CLI_MODEL });
+      if (!closed) res.write(text);
+    } catch (err) {
+      console.error('CLI generation failed:', err);
+      if (!closed) res.write(`\n\n===ERROR===\n${err.message || 'Content generation failed.'}`);
+    } finally {
+      if (!closed) res.end();
+    }
+    return;
+  }
+
+  // GENERATION_MODE === 'api'
   let stream;
   try {
     stream = anthropic.messages.stream({
@@ -112,11 +152,6 @@ app.post('/generate-content', async (req, res) => {
     res.write(`\n\n===ERROR===\n${err.message || 'Failed to start generation.'}`);
     return res.end();
   }
-
-  let closed = false;
-  req.on('close', () => {
-    closed = true;
-  });
 
   stream.on('text', (textChunk) => {
     if (!closed) res.write(textChunk);
@@ -159,5 +194,6 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 
 app.listen(PORT, () => {
   console.log(`SOP Content Generator listening on http://localhost:${PORT}`);
-  console.log(`Using model: ${MODEL}`);
+  console.log(`Generation mode: ${GENERATION_MODE === 'cli' ? 'cli (Claude Code subscription)' : 'api (ANTHROPIC_API_KEY)'}`);
+  console.log(`Using model: ${GENERATION_MODE === 'cli' ? CLI_MODEL : MODEL}`);
 });

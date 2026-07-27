@@ -21,11 +21,56 @@ type of page you're building — not one generic template stretched across every
 - No fabricated statistics, citations, facility names, phone numbers, or addresses — the
   Organization schema uses clearly labeled placeholders (`[Organization Name]`, `[Phone
   Number]`, etc.) for you to fill in with real business details.
+- Two ways to actually talk to Claude — pick whichever fits how you already pay for Claude
+  (see [Choosing a generation mode](#choosing-a-generation-mode) below).
 
 ## Requirements
 
 - Node.js 18 or later
-- An [Anthropic API key](https://console.anthropic.com/)
+- Either:
+  - An existing **Claude Pro, Max, or Team subscription** plus the Claude Code CLI installed
+    locally (no separate billing), or
+  - An [Anthropic API key](https://console.anthropic.com/) (billed separately, per token)
+
+## Choosing a generation mode
+
+Set `GENERATION_MODE` in `.env` to one of:
+
+### `GENERATION_MODE=cli` (default in `.env.example`) — use your Claude subscription
+
+Runs generation through the `claude` CLI, authenticated with your existing Claude.ai login
+(Pro, Max, or Team plan). **No separate API key or billing required.**
+
+1. Install the CLI globally:
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   ```
+2. Log in once:
+   ```bash
+   claude
+   ```
+   Follow the prompt to log in with your Claude.ai account (choose the "Claude account" /
+   subscription option, not "API key"). You can exit once you're logged in — `/exit` or
+   Ctrl+C.
+3. Leave `GENERATION_MODE=cli` in `.env` (no `ANTHROPIC_API_KEY` needed).
+
+Trade-offs of this mode:
+- Usage counts against your Claude plan's normal usage limits (the same rolling-window
+  limits as using Claude Code/claude.ai directly), not a separate API bill.
+- **No live token-by-token streaming.** The CLI's headless print mode returns the complete
+  page once it's fully generated, not word-by-word — for a 2,000+ word page that can take
+  30–90+ seconds. The UI shows a "Writing your page…" status and then displays the whole
+  result at once.
+- Each request runs the tool defensively: it explicitly disallows Bash, Edit, Write, and
+  other side-effecting tools (`cliGenerator.js`), so a request only ever produces text — it
+  can't read/write files or run commands on your machine.
+- If `claude` isn't installed or isn't logged in, `/generate-content` returns a clear error
+  telling you what to fix.
+
+### `GENERATION_MODE=api` — use a billed Anthropic API key
+
+Calls the Anthropic Messages API directly with `ANTHROPIC_API_KEY`, billed per token
+separately from any claude.ai subscription. Supports true live streaming.
 
 ## Setup
 
@@ -35,15 +80,17 @@ type of page you're building — not one generic template stretched across every
    npm install
    ```
 
-2. Copy the environment template and add your API key:
+2. Copy the environment template:
 
    ```bash
    cp .env.example .env
    ```
 
-   Edit `.env`:
+   Then either follow the **`cli` mode** steps above (recommended if you already have a
+   Claude subscription), or switch to **`api` mode** by editing `.env`:
 
    ```
+   GENERATION_MODE=api
    ANTHROPIC_API_KEY=sk-ant-...
    CLAUDE_MODEL=claude-sonnet-4-6
    PORT=3000
@@ -52,7 +99,9 @@ type of page you're building — not one generic template stretched across every
 
    > **Model name note:** `CLAUDE_MODEL` defaults to `claude-sonnet-4-6`. Model ids change
    > over time — if generation fails with a "model not found" error, check the current model
-   > id in your Anthropic console/docs and update `CLAUDE_MODEL` accordingly.
+   > id in your Anthropic console/docs and update `CLAUDE_MODEL` accordingly. (`cli` mode uses
+   > `CLAUDE_CLI_MODEL` instead, which accepts simple aliases like `sonnet` that don't go
+   > stale the same way.)
 
 3. Start the server:
 
@@ -113,8 +162,10 @@ type of page you're building — not one generic template stretched across every
 `title`, `primaryKeywords`, `sopType`, and `audience` are required; `pageUrl` and
 `secondaryKeywords` are optional.
 
-**Response:** `200 OK` with `Content-Type: text/plain`, streamed in chunks as Claude generates
-it. The stream body is:
+**Response:** `200 OK` with `Content-Type: text/plain`. In `api` mode this is streamed in
+chunks as Claude generates it; in `cli` mode the full body is written in one chunk once
+generation finishes (no token-level streaming available from the CLI). Either way, the body
+is:
 
 ```
 # Page H1
@@ -139,9 +190,9 @@ title/description.
 If generation fails partway through, the stream includes an `===ERROR===` marker followed by a
 human-readable message instead of (or in addition to) the schema JSON.
 
-**Error responses** (before streaming starts): `400` for missing/invalid fields, `500` if
-`ANTHROPIC_API_KEY` isn't configured or the Claude API call fails outright — both return JSON:
-`{ "error": "..." }`.
+**Error responses** (before streaming starts): `400` for missing/invalid fields, `500` if the
+configured generation mode isn't ready (missing `ANTHROPIC_API_KEY` in `api` mode, or `claude`
+not installed/logged in for `cli` mode) — both return JSON: `{ "error": "..." }`.
 
 ### `GET /sop-types`
 
@@ -150,14 +201,17 @@ build the dropdowns dynamically instead of hardcoding them.
 
 ### `GET /health`
 
-Returns `{ "status": "ok", "model": "...", "hasApiKey": true|false }` for a quick sanity check.
+Returns `{ "status": "ok", "generationMode": "cli"|"api", "model": "...", "hasApiKey":
+true|false }` for a quick sanity check. The frontend calls this on load to decide which status
+message to show while generating.
 
 ## Project structure
 
 ```
 .
-├── server.js          # Express app + /generate-content streaming endpoint
+├── server.js          # Express app + /generate-content endpoint
 ├── prompts.js          # SOP blueprints and Claude prompt construction
+├── cliGenerator.js     # Shells out to `claude -p` for GENERATION_MODE=cli
 ├── index.html          # Single-file frontend (HTML + CSS + JS)
 ├── package.json
 ├── .env.example
