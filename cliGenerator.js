@@ -72,6 +72,10 @@ function generateWithCli({ system, user, model }) {
         windowsHide: true
       });
 
+      // Explicitly close stdin: the CLI accepts the prompt as a positional
+      // arg above, and some invocations otherwise wait on stdin for EOF.
+      child.stdin.end();
+
       let stdout = '';
       let stderr = '';
 
